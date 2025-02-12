@@ -1,0 +1,20 @@
+# config/development.yaml
+aws:
+  region: ap-northeast-2
+  credentials:
+    profile: your-sso-profile
+
+exporter:
+  host: "127.0.0.1"
+  port: 9043
+  collection_interval: 60
+
+target:
+  tag_key: "env"
+  tag_value: "dev"
+
+cloudwatch:
+  period: 60
+  stat: "Average"
+  retry_attempts: 3
+  retry_delay: 1

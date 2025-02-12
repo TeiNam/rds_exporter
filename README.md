@@ -120,7 +120,17 @@ AWS_PROFILE=your-profile-name cargo run
 cargo test
 
 # 개발 모드 실행
-cargo run
+RUN_MODE=development cargo run
+```
+
+## 프로덕션
+```angular2html
+RUN_MODE=production cargo run
+```
+
+### 환경변수로 개별 설정 오버라이드도 가능
+```angular2html
+APP_EXPORTER_PORT=9044 APP_AWS_REGION=ap-northeast-1 cargo run
 ```
 
 ## 라이센스

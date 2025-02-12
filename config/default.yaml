@@ -1,0 +1,20 @@
+# config/default.yaml
+aws:
+  region: ap-northeast-2
+  credentials:
+    profile: your-sso-profile
+
+exporter:
+  host: "0.0.0.0"
+  port: 9043
+  collection_interval: 60  # 초 단위
+
+target:
+  tag_key: "env"
+  tag_value: "prd"
+
+cloudwatch:
+  period: 60  # 초 단위
+  stat: "Average"
+  retry_attempts: 3
+  retry_delay: 1  # 초 단위

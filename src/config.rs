@@ -1,42 +1,87 @@
 // src/config.rs
 use serde::Deserialize;
 use std::env;
-use anyhow::Result;
+use config::{Config, ConfigError, Environment, File};
 
 #[derive(Debug, Deserialize)]
-pub struct Config {
-    pub region: String,
-    pub collection_interval: u64,
-    pub target_tag_key: String,
-    pub target_tag_value: String,
-    pub prometheus_host: String,
-    pub prometheus_port: u16,
+pub struct Settings {
+    pub aws: AwsSettings,
+    pub exporter: ExporterSettings,
+    pub target: TargetSettings,
+    pub cloudwatch: CloudWatchSettings,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            region: "ap-northeast-2".to_string(),
-            collection_interval: 60,
-            target_tag_key: "env".to_string(),
-            target_tag_value: "prd".to_string(),
-            prometheus_host: "0.0.0.0".to_string(),  // 모든 인터페이스에서 수신하도록 변경
-            prometheus_port: 9043,  // RDS exporter용 포트로 변경
-        }
+#[derive(Debug, Deserialize)]
+pub struct AwsSettings {
+    pub region: String,
+    pub credentials: Option<AwsCredentials>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AwsCredentials {
+    pub profile: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ExporterSettings {
+    pub host: String,
+    pub port: u16,
+    pub collection_interval: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TargetSettings {
+    pub tag_key: String,
+    pub tag_value: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CloudWatchSettings {
+    pub period: i32,
+    pub stat: String,
+    pub retry_attempts: u32,
+    pub retry_delay: u64,
+}
+
+impl Settings {
+    pub fn new() -> Result<Self, ConfigError> {
+        let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "development".into());
+
+        let s = Config::builder()
+            // 기본 설정 파일
+            .add_source(File::with_name("config/default"))
+            // 환경별 설정 파일
+            .add_source(File::with_name(&format!("config/{}", run_mode)).required(false))
+            // 환경 변수로 오버라이드 (예: AWS_REGION, EXPORTER_PORT 등)
+            .add_source(Environment::with_prefix("APP"))
+            .build()?;
+
+        s.try_deserialize()
     }
 }
 
-pub fn from_env() -> Result<Config> {
-    Ok(Config {
-        region: env::var("AWS_REGION").unwrap_or_else(|_| "ap-northeast-2".to_string()),
-        collection_interval: env::var("COLLECTION_INTERVAL")
-            .unwrap_or_else(|_| "60".to_string())
-            .parse()?,
-        target_tag_key: env::var("TARGET_TAG_KEY").unwrap_or_else(|_| "env".to_string()),
-        target_tag_value: env::var("TARGET_TAG_VALUE").unwrap_or_else(|_| "prd".to_string()),
-        prometheus_host: env::var("PROMETHEUS_HOST").unwrap_or_else(|_| "0.0.0.0".to_string()),
-        prometheus_port: env::var("PROMETHEUS_PORT")
-            .unwrap_or_else(|_| "9043".to_string())
-            .parse()?,
-    })
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            aws: AwsSettings {
+                region: "ap-northeast-2".to_string(),
+                credentials: None,
+            },
+            exporter: ExporterSettings {
+                host: "0.0.0.0".to_string(),
+                port: 9043,
+                collection_interval: 60,
+            },
+            target: TargetSettings {
+                tag_key: "env".to_string(),
+                tag_value: "prd".to_string(),
+            },
+            cloudwatch: CloudWatchSettings {
+                period: 60,
+                stat: "Average".to_string(),
+                retry_attempts: 3,
+                retry_delay: 1,
+            },
+        }
+    }
 }

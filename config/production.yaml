@@ -1,0 +1,18 @@
+# config/production.yaml
+aws:
+  region: ap-northeast-2
+
+exporter:
+  host: "0.0.0.0"
+  port: 9043
+  collection_interval: 60
+
+target:
+  tag_key: "env"
+  tag_value: "prd"
+
+cloudwatch:
+  period: 60
+  stat: "Average"
+  retry_attempts: 5
+  retry_delay: 2

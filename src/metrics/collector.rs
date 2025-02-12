@@ -130,6 +130,18 @@ impl RdsMetricCollector {
             "WriteIOPS".to_string(),
             "ReadLatency".to_string(),
             "WriteLatency".to_string(),
+            "DiskQueueDepth".to_string(),              // 스토리지 I/O 요청 대기열 길이
+            "ReadThroughput".to_string(),              // 읽기 전송량 (MB/s)
+            "WriteThroughput".to_string(),             // 쓰기 전송량 (MB/s)
+            "NetworkReceiveThroughput".to_string(),    // 수신 네트워크 트래픽
+            "NetworkTransmitThroughput".to_string(),   // 송신 네트워크 트래픽
+            "LockWaitTime".to_string(),                // 락 대기 시간
+            "LockContention".to_string(),              // 락 충돌 횟수
+            "QueryExecutionTime".to_string(),          // 평균 쿼리 실행 시간
+            "QueryCount".to_string(),                  // 총 쿼리 실행 횟수
+            "SlowQueries".to_string(),                 // 임계치를 초과한 느린 쿼리 수
+            "BackupStatus".to_string(),                // 백업 상태
+            "SnapshotAge".to_string(),                 // 최신 스냅샷 생성 시각
         ]
     }
 
@@ -139,6 +151,8 @@ impl RdsMetricCollector {
             "Queries".to_string(),
             "ThreadsRunning".to_string(),
             "InnodbBufferPoolHits".to_string(),
+            "InnodbBufferPoolReadRequests".to_string(), // 버퍼 풀 읽기 요청 수
+            "InnodbBufferPoolReads".to_string(),          // 실제 읽기 수
             "DeadlocksCount".to_string(),
         ]);
         metrics
@@ -151,6 +165,10 @@ impl RdsMetricCollector {
             "BufferCacheHitRatio".to_string(),
             "IndexHitRatio".to_string(),
             "Deadlocks".to_string(),
+            "TemporaryTables".to_string(),        // 임시 테이블 사용률
+            "ReplicationLag".to_string(),           // 복제 지연 시간
+            "CheckpointDuration".to_string(),       // 체크포인트 소요 시간
+            "WALWriteLatency".to_string(),          // WAL 쓰기 지연 시간
         ]);
         metrics
     }

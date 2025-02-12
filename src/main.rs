@@ -14,6 +14,7 @@ use crate::aws::cloudwatch::{CloudWatchCollector, MetricConfig as CWConfig};
 use crate::aws::rds::{RdsConfig, RdsInstanceManager};
 use crate::metrics::collector::{MetricPublisher, RdsMetricCollector};
 use crate::metrics::prometheus_publisher::PrometheusPublisher;
+use crate::config::Settings;
 
 mod aws;
 mod config;
@@ -48,27 +49,38 @@ async fn main() -> anyhow::Result<()> {
     info!("RDS 메트릭 수집기 시작...");
 
     // 설정 로드
-    let config = config::from_env()?;
+    let config = Settings::new()?;
     info!("설정 로드 완료: {:?}", config);
 
     // AWS SDK 설정
-    let aws_config = aws_config::defaults(BehaviorVersion::latest())
-        .region(aws_config::Region::new(config.region.clone()))
-        .load()
-        .await;
+    let mut aws_config_builder = aws_config::defaults(BehaviorVersion::latest())
+        .region(aws_config::Region::new(config.aws.region.clone()));
+
+    // AWS 프로필 설정이 있는 경우 적용
+    if let Some(credentials) = &config.aws.credentials {
+        aws_config_builder = aws_config_builder
+            .profile_name(&credentials.profile)
+            .credentials_provider(
+                aws_config::profile::ProfileFileCredentialsProvider::builder()
+                    .profile_name(&credentials.profile)
+                    .build()
+            );
+    }
+
+    let aws_config = aws_config_builder.load().await;
 
     // CloudWatch 수집기 설정
     let cw_config = CWConfig {
-        period: 60,
-        stat: "Average".to_string(),
-        retry_attempts: 3,
-        retry_delay: Duration::seconds(1),
+        period: config.cloudwatch.period,
+        stat: config.cloudwatch.stat.clone(),
+        retry_attempts: config.cloudwatch.retry_attempts,
+        retry_delay: Duration::seconds(config.cloudwatch.retry_delay as i64),
     };
 
     // RDS 매니저 설정
     let rds_config = RdsConfig {
-        target_tag_key: config.target_tag_key,
-        target_tag_value: config.target_tag_value,
+        target_tag_key: config.target.tag_key,
+        target_tag_value: config.target.tag_value,
         ..Default::default()
     };
 
@@ -87,7 +99,7 @@ async fn main() -> anyhow::Result<()> {
         cloudwatch,
         rds_manager,
         publishers,
-        Duration::seconds(config.collection_interval as i64),
+        Duration::seconds(config.exporter.collection_interval as i64),
     );
 
     // Prometheus 메트릭 엔드포인트 설정
@@ -105,13 +117,13 @@ async fn main() -> anyhow::Result<()> {
     let routes = metrics_route.or(health_route);
 
     // 서버 주소 설정
-    let addr: SocketAddr = format!("{}:{}", config.prometheus_host, config.prometheus_port)
+    let addr: SocketAddr = format!("{}:{}", config.exporter.host, config.exporter.port)
         .parse()
         .expect("Invalid address");
 
     info!(
         "메트릭 수집 시작 (수집 주기: {}초)",
-        config.collection_interval
+        config.exporter.collection_interval
     );
 
     // 수집기와 HTTP 서버 동시 실행

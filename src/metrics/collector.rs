@@ -4,7 +4,7 @@ use crate::aws::rds::RdsInstanceManager;
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use std::collections::HashMap;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 #[derive(Debug, Clone)]
 pub struct MetricPoint {
@@ -56,6 +56,8 @@ impl RdsMetricCollector {
 
     async fn collect_and_publish(&mut self) -> anyhow::Result<()> {
         let instances = self.rds_manager.get_prd_instances().await?;
+        debug!("수집 대상 인스턴스 조회: {} 개", instances.len());
+
         let mut all_metrics = Vec::new();
         let end_time = Utc::now();
         let start_time = end_time - Duration::minutes(5);
@@ -63,15 +65,23 @@ impl RdsMetricCollector {
         for instance in instances {
             let instance_id = instance.db_instance_identifier().unwrap_or_default();
             let engine = instance.engine().unwrap_or_default();
-            let mut tags = self.get_instance_tags(&instance);
-            // instance_id를 tags에 포함
-            tags.insert("instance_id".to_string(), instance_id.to_string());
+            let tags = self.get_instance_tags(&instance);
+
+            debug!(
+                "인스턴스 처리 시작 - ID: {}, 엔진: {}, 태그: {:?}",
+                instance_id, engine, tags
+            );
 
             let metrics_to_collect = match &engine[..] {
                 "aurora-mysql" | "mysql" => self.get_mysql_metrics(),
                 "aurora-postgresql" | "postgres" => self.get_postgresql_metrics(),
                 _ => self.get_common_metrics(),
             };
+
+            debug!(
+                "수집할 메트릭 목록 ({:?}): {:?}",
+                engine, metrics_to_collect
+            );
 
             let metric_tuples: Vec<(&str, &str, &str, &str)> = metrics_to_collect
                 .iter()
@@ -91,12 +101,23 @@ impl RdsMetricCollector {
                     for (idx, data) in response.metric_data_results().iter().enumerate() {
                         let metric_name = &metrics_to_collect[idx];
 
+                        debug!(
+                            "메트릭 데이터 수신 - 인스턴스: {}, 메트릭: {}, 데이터 포인트 수: {}",
+                            instance_id,
+                            metric_name,
+                            data.values().len()
+                        );
+
                         for value in data.values() {
                             let metric = MetricPoint {
                                 value: *value,
                                 metric_name: metric_name.clone(),
                                 additional_tags: tags.clone(),
                             };
+                            debug!(
+                                "메트릭 포인트 생성 - 이름: {}, 값: {}, 태그: {:?}",
+                                metric.metric_name, metric.value, metric.additional_tags
+                            );
                             all_metrics.push(metric);
                         }
                     }
@@ -110,6 +131,8 @@ impl RdsMetricCollector {
                 }
             }
         }
+
+        debug!("전체 수집된 메트릭 수: {}", all_metrics.len());
 
         for publisher in &self.publishers {
             if let Err(e) = publisher.publish(all_metrics.clone()).await {

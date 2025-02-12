@@ -47,20 +47,24 @@ impl PrometheusPublisher {
 #[async_trait]
 impl MetricPublisher for PrometheusPublisher {
     async fn publish(&self, metrics: Vec<MetricPoint>) -> anyhow::Result<()> {
+        debug!("Prometheus 메트릭 발행 시작: {} 개", metrics.len());
+
         for metric in metrics {
             let metric_name = self.create_metric_name(&metric);
             let help = format!("RDS metric: {}", metric_name);
 
-            // 라벨 이름 목록 생성
             let label_names: Vec<&str> = metric.additional_tags
                 .keys()
                 .map(|s| s.as_str())
                 .collect();
 
-            // 메트릭 생성 또는 가져오기
+            debug!(
+                "메트릭 처리: {} (값: {}, 레이블: {:?})",
+                metric_name, metric.value, label_names
+            );
+
             match self.get_or_create_metric(&metric_name, &help, &label_names) {
                 Ok(gauge) => {
-                    // 라벨 값 맵 생성
                     let label_values: Vec<&str> = label_names
                         .iter()
                         .map(|&name| metric.additional_tags.get(name).map(|s| s.as_str()).unwrap_or(""))
@@ -68,7 +72,15 @@ impl MetricPublisher for PrometheusPublisher {
 
                     let metric_gauge = gauge.with_label_values(&label_values);
                     metric_gauge.set(metric.value);
-                    debug!("메트릭 업데이트: {}={} {:?}", metric_name, metric.value, label_values);
+                    debug!(
+                        "메트릭 설정 완료: {}{{{}}} = {}",
+                        metric_name,
+                        label_names.iter().zip(label_values.iter())
+                            .map(|(k, v)| format!("{}=\"{}\"", k, v))
+                            .collect::<Vec<_>>()
+                            .join(","),
+                        metric.value
+                    );
                 }
                 Err(e) => {
                     warn!("메트릭 생성 실패 ({}): {}", metric_name, e);
@@ -76,6 +88,8 @@ impl MetricPublisher for PrometheusPublisher {
                 }
             }
         }
+
+        debug!("Prometheus 메트릭 발행 완료");
         Ok(())
     }
 

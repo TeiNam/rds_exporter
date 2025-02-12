@@ -5,8 +5,8 @@ use aws_sdk_rds::Client as RdsClient;
 use chrono::Duration;
 use std::net::SocketAddr;
 use std::convert::Infallible;
-use tracing::{error, info, Level};
-use tracing_subscriber::FmtSubscriber;
+use tracing::{error, info };
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 use warp::Filter;
 use prometheus::{Encoder, TextEncoder};
 
@@ -35,8 +35,11 @@ async fn serve_health() -> Result<impl warp::Reply, Infallible> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // 로깅 설정
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info"));  // 기본 레벨은 info
+
     FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_env_filter(env_filter)
         .with_file(true)
         .with_line_number(true)
         .with_thread_ids(true)

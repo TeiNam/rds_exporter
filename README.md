@@ -62,6 +62,57 @@ RDS 인스턴스의 다음과 같은 CloudWatch 메트릭을 수집합니다:
 - 데이터베이스 연결 수
 등
 
+## 로컬 개발에서 인증 방식 
+### 환경변수 사용
+```angular2html
+export AWS_ACCESS_KEY_ID=your_access_key
+export AWS_SECRET_ACCESS_KEY=your_secret_key
+export AWS_REGION=ap-northeast-2
+```
+### AWS CLI 프로필 사용
+```angular2html
+# ~/.aws/credentials 파일 설정
+[default]
+aws_access_key_id = your_access_key
+aws_secret_access_key = your_secret_key
+
+# ~/.aws/config 파일 설정
+[default]
+region = ap-northeast-2
+```
+### AWS SSO 사용 시
+```angular2html
+# AWS SSO 로그인
+aws sso login --profile your-profile-name
+
+# 프로필 지정하여 실행
+AWS_PROFILE=your-profile-name cargo run
+```
+
+## 프로덕션 환경
+1. ECS/EKS의 경우: Task/Pod에 적절한 IAM Role 할당
+2. EC2의 경우: 인스턴스에 IAM Role 할당
+3. 온프레미스의 경우: IAM User 자격 증명 사용
+
+### 필요한 IAM 권한
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "rds:DescribeDBInstances",
+                "rds:ListTagsForResource",
+                "cloudwatch:GetMetricData",
+                "cloudwatch:GetMetricStatistics"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
 ## 개발
 
 ```bash

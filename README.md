@@ -1,4 +1,3 @@
-여기 README.md의 전체 내용을 마크다운 코드 블록으로 제공해 드립니다:
 # 📊 RDS Exporter
 
 ![Rust](https://img.shields.io/badge/Rust-1.74+-orange.svg)

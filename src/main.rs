@@ -3,18 +3,18 @@ use aws_config::BehaviorVersion;
 use aws_sdk_cloudwatch::Client as CloudWatchClient;
 use aws_sdk_rds::Client as RdsClient;
 use chrono::Duration;
-use std::net::SocketAddr;
+use prometheus::{Encoder, TextEncoder};
 use std::convert::Infallible;
-use tracing::{error, info };
+use std::net::SocketAddr;
+use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 use warp::Filter;
-use prometheus::{Encoder, TextEncoder};
 
 use crate::aws::cloudwatch::{CloudWatchCollector, MetricConfig as CWConfig};
 use crate::aws::rds::{RdsConfig, RdsInstanceManager};
+use crate::config::Settings;
 use crate::metrics::collector::{MetricPublisher, RdsMetricCollector};
 use crate::metrics::prometheus_publisher::PrometheusPublisher;
-use crate::config::Settings;
 
 mod aws;
 mod config;
@@ -35,8 +35,7 @@ async fn serve_health() -> Result<impl warp::Reply, Infallible> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // 로깅 설정
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));  // 기본 레벨은 info
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")); // 기본 레벨은 info
 
     FmtSubscriber::builder()
         .with_env_filter(env_filter)
@@ -66,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
             .credentials_provider(
                 aws_config::profile::ProfileFileCredentialsProvider::builder()
                     .profile_name(&credentials.profile)
-                    .build()
+                    .build(),
             );
     }
 
@@ -113,9 +112,7 @@ async fn main() -> anyhow::Result<()> {
         .and(prometheus_publisher.clone())
         .and_then(serve_metrics);
 
-    let health_route = warp::path("health")
-        .and(warp::get())
-        .and_then(serve_health);
+    let health_route = warp::path("health").and(warp::get()).and_then(serve_health);
 
     let routes = metrics_route.or(health_route);
 

@@ -20,7 +20,12 @@ impl PrometheusPublisher {
         Self {}
     }
 
-    fn get_or_create_metric(&self, name: &str, help: &str, label_names: &[&str]) -> anyhow::Result<GaugeVec> {
+    fn get_or_create_metric(
+        &self,
+        name: &str,
+        help: &str,
+        label_names: &[&str],
+    ) -> anyhow::Result<GaugeVec> {
         let mut metrics = METRICS.write();
 
         if let Some(gauge) = metrics.get(name) {
@@ -53,10 +58,8 @@ impl MetricPublisher for PrometheusPublisher {
             let metric_name = self.create_metric_name(&metric);
             let help = format!("RDS metric: {}", metric_name);
 
-            let label_names: Vec<&str> = metric.additional_tags
-                .keys()
-                .map(|s| s.as_str())
-                .collect();
+            let label_names: Vec<&str> =
+                metric.additional_tags.keys().map(|s| s.as_str()).collect();
 
             debug!(
                 "메트릭 처리: {} (값: {}, 레이블: {:?})",
@@ -67,7 +70,13 @@ impl MetricPublisher for PrometheusPublisher {
                 Ok(gauge) => {
                     let label_values: Vec<&str> = label_names
                         .iter()
-                        .map(|&name| metric.additional_tags.get(name).map(|s| s.as_str()).unwrap_or(""))
+                        .map(|&name| {
+                            metric
+                                .additional_tags
+                                .get(name)
+                                .map(|s| s.as_str())
+                                .unwrap_or("")
+                        })
                         .collect();
 
                     let metric_gauge = gauge.with_label_values(&label_values);
@@ -75,7 +84,9 @@ impl MetricPublisher for PrometheusPublisher {
                     debug!(
                         "메트릭 설정 완료: {}{{{}}} = {}",
                         metric_name,
-                        label_names.iter().zip(label_values.iter())
+                        label_names
+                            .iter()
+                            .zip(label_values.iter())
                             .map(|(k, v)| format!("{}=\"{}\"", k, v))
                             .collect::<Vec<_>>()
                             .join(","),

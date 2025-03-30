@@ -1,7 +1,7 @@
 // src/config.rs
+use config::{Config, ConfigError, Environment, File};
 use serde::Deserialize;
 use std::env;
-use config::{Config, ConfigError, Environment, File};
 
 #[derive(Debug, Deserialize)]
 pub struct Settings {
